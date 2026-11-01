@@ -13,7 +13,7 @@ async function readJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function SimulatorPlayground() {
+export function SimulatorPlayground({ enabled = true }: { enabled?: boolean }) {
   const [phone, setPhone] = useState("+224612345678");
   const [body, setBody] = useState("Your verification code is 482901");
   const [provider, setProvider] = useState("generic");
@@ -27,30 +27,6 @@ export function SimulatorPlayground() {
   const [inbound, setInbound] = useState<InboundResult | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function sendSms(force?: "delivered" | "failed", rateLimit = false) {
-    setBusy(true);
-    setEvents(null);
-    const response = await fetch("/api/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        to: phone,
-        body,
-        sender_id: "DEMO",
-        provider,
-        simulation: {
-          latency_ms: 700,
-          delivery_delay_ms: 1800,
-          failure_rate: 0.08,
-          final_status: force,
-          rate_limit: rateLimit,
-        },
-      }),
-    });
-    setMessage(await readJson<MessageResult>(response));
-    setBusy(false);
-  }
-
   useEffect(() => {
     if (!message?.id || ["delivered", "failed"].includes(message.status ?? "")) return;
     const timer = setInterval(async () => {
@@ -59,6 +35,42 @@ export function SimulatorPlayground() {
     }, 700);
     return () => clearInterval(timer);
   }, [message]);
+
+  if (!enabled) {
+    return (
+      <div className="panel" role="status">
+        <div className="eyebrow">PLAYGROUND DISABLED</div>
+        <p>The browser playground is disabled in production or when API authentication is configured. Use the API from a trusted server-side client and keep the API key out of browser code.</p>
+      </div>
+    );
+  }
+
+  async function sendSms(force?: "delivered" | "failed", rateLimit = false) {
+    setBusy(true);
+    setEvents(null);
+    try {
+      const response = await fetch("/api/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          to: phone,
+          body,
+          sender_id: "DEMO",
+          provider,
+          simulation: {
+            latency_ms: 700,
+            delivery_delay_ms: 1800,
+            failure_rate: 0.08,
+            final_status: force,
+            rate_limited: rateLimit,
+          },
+        }),
+      });
+      setMessage(await readJson<MessageResult>(response));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function inspectEvents() {
     if (!message?.id) return;
@@ -164,7 +176,6 @@ export function SimulatorPlayground() {
           )}
         </div>
       </div>
-
       <div className="playground gridThree">
         <div className="panel">
           <div className="eyebrow">Provider catalog</div>
@@ -172,14 +183,12 @@ export function SimulatorPlayground() {
           <button onClick={loadProviders}>Load profiles</button>
           {providers ? <pre>{JSON.stringify(providers, null, 2)}</pre> : null}
         </div>
-
         <div className="panel">
           <div className="eyebrow">Batch messaging</div>
           <p>Submit three messages at once and inspect accepted/rejected outcomes.</p>
           <button onClick={sendBatch}>Run batch simulation</button>
           {batch ? <pre>{JSON.stringify(batch, null, 2)}</pre> : null}
         </div>
-
         <div className="panel">
           <div className="eyebrow">Inbound SMS</div>
           <p>Generate a signed inbound message event for webhook testing.</p>

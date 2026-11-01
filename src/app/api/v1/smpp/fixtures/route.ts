@@ -1,4 +1,4 @@
-import { json, requireApiKey } from "@/lib/api";
+import { enforceRateLimit, json, requireApiKey } from "@/lib/api";
 
 const fixtures = {
   submit_sm: {
@@ -28,6 +28,9 @@ const fixtures = {
 };
 
 export async function GET(request: Request) {
+  const limited = enforceRateLimit(request, "smpp-fixtures", 30, 60_000);
+  if (limited) return limited;
+
   const denied = requireApiKey(request);
   if (denied) return denied;
 

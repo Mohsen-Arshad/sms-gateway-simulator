@@ -1,14 +1,24 @@
 import { z } from "zod";
-import { errorResponse, json, phoneSchema, requireApiKey } from "@/lib/api";
+import {
+  enforceRateLimit,
+  errorResponse,
+  json,
+  phoneSchema,
+  readJson,
+  requireApiKey,
+} from "@/lib/api";
 import { providerFailureCode, type SimulatorProvider } from "@/lib/providers";
 import { chooseFinalStatus, currentSmsStatus, maskPhone, seal, type SmsPayload } from "@/lib/simulator";
+
+const metadataSchema = z.record(z.string().max(64), z.string().max(256))
+  .refine((metadata) => Object.keys(metadata).length <= 20, "At most 20 metadata fields are allowed");
 
 export const messageSchema = z.object({
   to: phoneSchema,
   body: z.string().min(1).max(1000),
-  sender_id: z.string().min(1).max(20).default("DEMO"),
+  sender_id: z.string().min(1).max(20).regex(/^[A-Za-z0-9_-]+$/).default("DEMO"),
   provider: z.enum(["generic", "orange", "mtn", "moov"]).default("generic"),
-  metadata: z.record(z.string(), z.string()).optional(),
+  metadata: metadataSchema.optional(),
   simulation: z.object({
     latency_ms: z.number().int().min(0).max(30_000).default(700),
     delivery_delay_ms: z.number().int().min(0).max(60_000).default(1800),
@@ -16,8 +26,8 @@ export const messageSchema = z.object({
     final_status: z.enum(["delivered", "failed"]).optional(),
     rate_limited: z.boolean().default(false),
     retry_after_seconds: z.number().int().min(1).max(3600).default(30),
-  }).optional(),
-});
+  }).strict().optional(),
+}).strict();
 
 export function buildMessage(input: z.infer<typeof messageSchema>) {
   const simulation = input.simulation ?? {
@@ -73,19 +83,24 @@ export function buildMessage(input: z.infer<typeof messageSchema>) {
 }
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, "messages", 60, 60_000);
+  if (limited) return limited;
+
   const denied = requireApiKey(request);
   if (denied) return denied;
 
   try {
-    const input = messageSchema.parse(await request.json());
+    const input = messageSchema.parse(await readJson(request, 64 * 1024));
     const result = buildMessage(input);
 
     if (result.rateLimited) {
-      return json({
-        error: "rate_limited",
+      const response = json({
+        error: "simulated_provider_rate_limit",
         message: "Simulated provider rate limit reached.",
         retry_after_seconds: result.retryAfterSeconds,
       }, 429);
+      response.headers.set("retry-after", String(result.retryAfterSeconds));
+      return response;
     }
 
     return json(result.response, 202);

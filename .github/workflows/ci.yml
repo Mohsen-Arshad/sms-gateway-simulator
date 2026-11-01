@@ -1,23 +1,43 @@
 name: CI
+
 on:
   push:
-    branches: [main]
+    branches: [main, "security/**"]
   pull_request:
+
 permissions:
   contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Audit production and development dependencies
+        run: npm audit --audit-level=high
+      - name: Verify resolved critical runtime packages
+        run: npm ls next react react-dom sharp --all
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
         env:
-          SIMULATOR_SECRET: ci-only-secret-long-enough-123456789
+          SIMULATOR_SECRET: ci-only-secret-long-enough-1234567890123456
+          SIMULATOR_API_KEY: ci-only-api-key-long-enough-1234567890123456
+          SIMULATOR_EXPOSE_OTP: "false"
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build production Docker image
+        run: docker build --tag sms-gateway-simulator:ci .

@@ -19,7 +19,12 @@ export default function Docs() {
       <Link href="/">← Simulator</Link>
       <div className="eyebrow">DOCUMENTATION</div>
       <h1>API Reference</h1>
-      <p>The hosted demo is intentionally stateless. Message IDs are encrypted tokens carrying simulation state, so GET requests work across serverless instances without a database.</p>
+      <p>The simulator is stateless. Message IDs are authenticated encrypted tokens carrying simulation state, so GET requests work across serverless instances without a database.</p>
+
+      <h2>Authentication</h2>
+      <p>Production mode requires a unique <code>SIMULATOR_API_KEY</code> of at least 32 characters. Send it as a Bearer token from a trusted server-side client. Never put this key in browser JavaScript.</p>
+      <pre>{`Authorization: Bearer <SIMULATOR_API_KEY>`}</pre>
+      <p>Local development may run without an API key. Production requests fail closed when the key or the independent <code>SIMULATOR_SECRET</code> is missing or weak.</p>
 
       <h2>Endpoints</h2>
       <div className="endpointList">
@@ -33,6 +38,7 @@ export default function Docs() {
       <h2>Send an SMS</h2>
       <pre>{`POST /api/v1/messages
 Content-Type: application/json
+Authorization: Bearer <SIMULATOR_API_KEY>
 
 {
   "to": "+224612345678",
@@ -56,7 +62,7 @@ Content-Type: application/json
       <p>Use <code>/api/v1/inbound</code> to generate a signed incoming SMS event. Use <code>/api/v1/smpp/fixtures</code> for SMPP-like JSON examples representing submit and delivery-receipt flows.</p>
 
       <h2>Security model</h2>
-      <p>Simulator IDs are encrypted with AES-256-GCM. Webhook signatures use HMAC-SHA256. Set <code>SIMULATOR_SECRET</code> in production and optionally <code>SIMULATOR_API_KEY</code> to protect the API.</p>
+      <p>Simulator IDs use AES-256-GCM and webhook signatures use a purpose-derived HMAC-SHA256 key. Request bodies are size-limited, endpoints are rate-limited per process, and OTP debug values are hidden by default. Stateless OTP tokens can be replayed until expiry, so this simulator must never authenticate real users. For multi-instance deployments, enforce distributed rate limits at a trusted gateway.</p>
 
       <h2>OpenAPI</h2>
       <p><a href="/api/openapi">Download the OpenAPI document →</a></p>

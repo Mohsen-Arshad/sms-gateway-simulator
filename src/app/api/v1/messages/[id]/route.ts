@@ -1,12 +1,16 @@
-import { errorResponse, json, requireApiKey } from "@/lib/api";
-import { currentSmsStatus, maskPhone, unseal, type SmsPayload } from "@/lib/simulator";
+import { enforceRateLimit, errorResponse, json, requireApiKey } from "@/lib/api";
+import { currentSmsStatus, maskPhone, parseSmsPayload } from "@/lib/simulator";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const limited = enforceRateLimit(request, "message-read", 120, 60_000);
+  if (limited) return limited;
+
   const denied = requireApiKey(request);
   if (denied) return denied;
+
   try {
     const { id } = await params;
-    const payload = unseal<SmsPayload>(id, "sms");
+    const payload = parseSmsPayload(id);
     const status = currentSmsStatus(payload);
     return json({
       id,

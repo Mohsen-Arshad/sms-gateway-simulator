@@ -2,9 +2,12 @@ import Link from "next/link";
 import { SimulatorPlayground } from "@/components/simulator-playground";
 
 export default function Home() {
+  const playgroundEnabled =
+    process.env.NODE_ENV !== "production" && !process.env.SIMULATOR_API_KEY;
+
   return (
     <main>
-      <nav><div className="brand"><span className="dot" /> SMS Gateway Simulator</div><div className="navlinks"><Link href="/docs">Docs</Link><a href="/api/openapi">OpenAPI</a><a href="https://github.com/popytech/sms-gateway-simulator">GitHub</a></div></nav>
+      <nav><div className="brand"><span className="dot" /> SMS Gateway Simulator</div><div className="navlinks"><Link href="/docs">Docs</Link><a href="/api/openapi">OpenAPI</a><a href="https://github.com/Mohsen-Arshad/sms-gateway-simulator">GitHub</a></div></nav>
       <section className="hero">
         <div className="badge">OPEN SOURCE · STATELESS · SERVERLESS FRIENDLY</div>
         <h1>Test SMS and OTP flows<br />without a telecom provider.</h1>
@@ -18,9 +21,9 @@ export default function Home() {
         <article><div>03</div><h3>Webhook events</h3><p>Inspect lifecycle events with realistic HMAC signatures for local integration tests.</p></article>
         <article><div>04</div><h3>Serverless-safe</h3><p>Encrypted self-contained IDs eliminate database and background-timer requirements.</p></article>
       </section>
-      <section id="playground" className="section"><div className="sectionHead"><div className="eyebrow">LIVE PLAYGROUND</div><h2>Run the flow in your browser.</h2></div><SimulatorPlayground /></section>
-      <section className="section codeSection"><div><div className="eyebrow">API FIRST</div><h2>Drop it into your integration tests.</h2><p>Compatible with curl, Postman, CI pipelines and local application development.</p></div><pre>{`curl -X POST /api/v1/messages \\
-  -H "Content-Type: application/json" \\
+      <section id="playground" className="section"><div className="sectionHead"><div className="eyebrow">LIVE PLAYGROUND</div><h2>Run the flow in your browser.</h2></div><SimulatorPlayground enabled={playgroundEnabled} /></section>
+      <section className="section codeSection"><div><div className="eyebrow">API FIRST</div><h2>Drop it into your integration tests.</h2><p>Compatible with curl, Postman, CI pipelines and local application development.</p></div><pre>{`curl -X POST /api/v1/messages \\\
+  -H "Content-Type: application/json" \\\
   -d '{
     "to": "+224612345678",
     "body": "Your code is 482901",

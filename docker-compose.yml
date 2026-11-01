@@ -2,7 +2,25 @@ services:
   simulator:
     build: .
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
-      SIMULATOR_SECRET: local-docker-secret-change-me-123456789
-      SIMULATOR_EXPOSE_OTP: "true"
+      NODE_ENV: production
+      SIMULATOR_SECRET: ${SIMULATOR_SECRET:?Set SIMULATOR_SECRET in .env}
+      SIMULATOR_API_KEY: ${SIMULATOR_API_KEY:?Set SIMULATOR_API_KEY in .env}
+      SIMULATOR_WEBHOOK_SECRET: ${SIMULATOR_WEBHOOK_SECRET:-}
+      SIMULATOR_EXPOSE_OTP: "false"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=1001,gid=1001,mode=1777
+      - /app/.next/cache:rw,noexec,nosuid,size=64m,uid=1001,gid=1001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
